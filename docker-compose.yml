@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+    nginx_1:
+        container_name: nginx_1
+        build:
+            context: ${PWD}/nginx
+            dockerfile: ${PWD}/nginx/Dockerfile
+        ports:
+            '5000:5000'
+        volumes:
+            - "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
+            - "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+
+    nginx_2:
+        container_name: nginx_2
+        build:
+            context: ${PWD}/nginx
+            dockerfile: ${PWD}/nginx/Dockerfile
+        ports:
+            - '5001:5001'
+        volumes:
+            - "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
+            - "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+
+     haproxy:
+        container_name: haproxy
+        build:
+            context: ${PWD}/haproxy
+            dockerfile: ${PWD}/haproxy/Dockerfile
+        ports:
+            - '80:80'
+            - '443:443'
+        volumes:
+            - "${PWD}/haproxy/haproxy.conf:/etc/haproxy/haproxy.conf"

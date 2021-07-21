@@ -1,0 +1,7 @@
+name: Build and deploy the Docker image
+on: [push]
+jobs:
+  Build-Image:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"

@@ -1,35 +1,58 @@
 version: '3.7'
 
+networks:
+	frontend:
+		ipam:
+			config:
+			- subnet: 172.20.0.0/24
+
 services:
-    nginx_1:
-        container_name: nginx_1
-        build:
-            context: ${PWD}/nginx
-            dockerfile: ${PWD}/nginx/Dockerfile
-        ports:
-            '5000:5000'
-        volumes:
-            - "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
-            - "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+	haproxy:
+		container_name: haproxy
+		restart: on-failure
+		hostname: rt-loadbalancer
+		build:
+			context: ${PWD}/haproxy
+			dockerfile: ${PWD}/haproxy/Dockerfile
+		ports:
+			- '80:80'
+			- '443:443'
+			- '1936:1936'
+		networks:
+			frontend:
+				alias: web.rt.test
+				ipv4_address: 172.20.0.5
+		volumes:
+			- "${PWD}/haproxy/haproxy.cfg:/etc/haproxy/haproxy.cfg"
 
-    nginx_2:
-        container_name: nginx_2
-        build:
-            context: ${PWD}/nginx
-            dockerfile: ${PWD}/nginx/Dockerfile
-        ports:
-            - '5001:5001'
-        volumes:
-            - "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
-            - "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+	nginx_1:
+		container_name: nginx_1
+		hostname: rt-nginx-1
+		build:
+			context: ${PWD}/nginx
+			dockerfile: ${PWD}/nginx/Dockerfile
+		networks:
+			frontend:
+				alias: lb1.rt.test
+				ipv4_address: 172.20.0.6
+		volumes:
+			- "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
+			- "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+		depends_on: 
+			- haproxy
 
-     haproxy:
-        container_name: haproxy
-        build:
-            context: ${PWD}/haproxy
-            dockerfile: ${PWD}/haproxy/Dockerfile
-        ports:
-            - '80:80'
-            - '443:443'
-        volumes:
-            - "${PWD}/haproxy/haproxy.conf:/etc/haproxy/haproxy.conf"
+	nginx_2:
+		container_name: nginx_2
+		hostname: rt-nginx-2
+		build:
+			context: ${PWD}/nginx
+			dockerfile: ${PWD}/nginx/Dockerfile
+		networks:
+			frontend:
+				alias: lb2.rt.test
+				ipv4_address: 172.20.0.7
+		volumes:
+			- "${PWD}/nginx/default.conf:/etc/nginx/default.conf"
+			- "${PWD}/nginx/index.html:/usr/share/nginx/index.html"
+		depends_on: 
+			- haproxy

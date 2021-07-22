@@ -1,36 +1,49 @@
-ARG HAPROXY_IMAGE_VERSION=2.2.15-alpine
-ARG CERTBOT_IMAGE_VERSION=latest
+ARG GIT_TAG
+ARG GIT_SHA
+ARG GIT_BRANCH
+ARG GIT_DATE
+ARG BUILD_DATE
+ARG HAPROXY_IMAGE_VERSION=2.2.0
+FROM haproxy:${HAPROXY_IMAGE_VERSION}}
 
-FROM certbot/certbot:${CERTBOT_IMAGE_VERSION} as certbot
 
-## Define frontend hostname - for SSL purposes
-ARG FRONTEND_HOSTNAME="web.rt.test"
-RUN certbot certonly --standalone \
-    -d ${FRONTEND_HOSTNAME} \
-    --staple-ocsp \
-    --register-unsafely-without-email \
-    --agree-tos
+LABEL com.haproxy.git.tag="${GIT_TAG}"
+LABEL com.haproxy.git.sha="${GIT_SHA}"
+LABEL com.haproxy.git.branch="${GIT_BRANCH}"
+LABEL com.haproxy.git.date="${GIT_DATE}"
+LABEL com.haproxy.build.date="${BUILD_DATE}"
 
-## Merge the certs into the one
-RUN cat /etc/letsencrypt/live/${FRONTEND_HOSTNAME}/fullchain.pem \
-    /etc/letsencrypt/live/${FRONTEND_HOSTNAME}/privkey.pem \
-    | tee /etc/ssl/${FRONTEND_HOSTNAME}/${FRONTEND_HOSTNAME}.pem
+ENV HAPROXY_CONFIG='/etc/haproxy/haproxy.cfg'
+ENV HAPROXY_PORTS='80,443'
 
-FROM haproxy:${HAPROXY_IMAGE_VERSION}
+RUN \
+  apt update \
+  && apt install -yqq --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    certbot \
+    cron \
+    curl \
+    inotify-tools\
+    iptables \
+    sudo \
+    vim \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd -g 1000 -r haproxy \
+  && useradd -m -r -g haproxy -u 1000 haproxy \
+  && echo "haproxy ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/haproxy \
+  && chmod 0440 /etc/sudoers.d/haproxy \
+  && mkdir -p /var/lib/haproxy /etc/ssl \
+  && chown haproxy:haproxy /var/lib/haproxy \
+  && install -m 777 /dev/null /var/log/cron.log
 
-LABEL MAINTAINER="truskul <github.com/truskul>"
-LABEL DESCRIPTION="The HAProxy service with auto-generated SSL certificates and preconfigured TLS Termination"
-LABEL VERSION="1.0.0"
+### Copy files
+COPY haproxy.rsyslog.conf /etc/rsyslog.d/haproxy.conf
+COPY haproxy.logrotate.conf /etc/logrotate.d/haproxy
+COPY functions.sh /
+COPY bootstrap.sh /
 
-## Copy the generated certs into the haproxy container
-COPY --from=certbot \
-     --chown=haproxy:haproxy \
-     /etc/ssl/${FRONTEND_HOSTNAME}/${FRONTEND_HOSTNAME}.pem \
-     /etc/haproxy/certs/{$FRONTEND_HOSTNAME}.pem
-
-## Copy haproxy.cfg into the container
-COPY ./haproxy.cfg /etc/haproxy/haproxy.cfg
-
-## Run HAProxy syntax test
-RUN /usr/local/sbin/haproxy -c -V -f /etc/haproxy/haproxy.cfg
-RUN haproxy
+### File modes
+RUN chmod 644 /etc/rsyslog.d/haproxy.conf 
+USER haproxy
+ENTRYPOINT ["bash", "-c", "/bootstrap.sh"]

@@ -3,9 +3,13 @@ ARG GIT_SHA
 ARG GIT_BRANCH
 ARG GIT_DATE
 ARG BUILD_DATE
-ARG HAPROXY_IMAGE_VERSION=2.2.0
-FROM haproxy:${HAPROXY_IMAGE_VERSION}}
 
+ARG HAPROXY_IMAGE_VERSION=2.2.0
+FROM haproxy:${HAPROXY_IMAGE_VERSION}
+
+
+LABEL maintainer="truskul <github.com/truskul>"
+LABEL description ="Seamless HAProxy service with TLS termination"
 
 LABEL com.haproxy.git.tag="${GIT_TAG}"
 LABEL com.haproxy.git.sha="${GIT_SHA}"
@@ -38,12 +42,9 @@ RUN \
   && install -m 777 /dev/null /var/log/cron.log
 
 ### Copy files
-COPY haproxy.rsyslog.conf /etc/rsyslog.d/haproxy.conf
-COPY haproxy.logrotate.conf /etc/logrotate.d/haproxy
 COPY functions.sh /
 COPY bootstrap.sh /
 
 ### File modes
-RUN chmod 644 /etc/rsyslog.d/haproxy.conf 
 USER haproxy
 ENTRYPOINT ["bash", "-c", "/bootstrap.sh"]

@@ -3,23 +3,31 @@ version: '3.7'
 services:
   haproxy:
     container_name: haproxy
-    restart: on-failure
     hostname: rt-loadbalancer
     build:
       context: ${PWD}/haproxy
       dockerfile: ${PWD}/haproxy/Dockerfile
+    restart: on-failure
     ports:
-      - '80:80'
-      - '443:443'
-      - '1936:1936'
+      - "80:80"
+      - "443:443"
+      - "7999:7999"
+      - "8000:8000"
+      - "8003:8003"
     networks:
       frontend:
         ipv4_address: 172.20.0.5
+    cap_add:
+      - NET_ADMIN
     volumes:
-      - "${PWD}/haproxy/haproxy.cfg:/etc/haproxy/haproxy.cfg"
+      - ${PWD}/haproxy/config:/haproxy_config
+      - ${PWD}/haproxy/ssl:/etc/ssl/private
     depends_on: 
       - nginx_1
       - nginx_2
+    environment:
+      - HAPROXY_CONFIG=/haproxy_config/haproxy.cfg
+      - HAPROXY_PORTS=80,443,1194,7999,8000
   nginx_1:
     container_name: nginx_1
     hostname: rt-nginx-1
